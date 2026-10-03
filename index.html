@@ -10,93 +10,111 @@
     body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', sans-serif; }
   </style>
 </head>
-<body class="p-6 max-w-5xl mx-auto">
+<body class="p-6 max-w-4xl mx-auto">
 
-  <header class="text-center mb-8">
-    <h1 class="text-2xl font-bold text-teal-400 tracking-wide">PARSER DE SCRIMS & CUSTOM GAMES (.ROFL)</h1>
-    <p class="text-xs text-zinc-400 mt-1">Extrae métricas reales de partidas privadas sin necesidad de la API de Riot</p>
+  <header class="text-center mb-6">
+    <h1 class="text-2xl font-bold text-teal-400 tracking-wide">PARSER DE SCRIMS & MATCH IDs</h1>
+    <p class="text-xs text-zinc-400 mt-1">Obtén datos reales e hiperprecisos de partidas personalizadas</p>
   </header>
+
+  <!-- Configuración de API Key -->
+  <div class="bg-zinc-900 border border-zinc-800 p-4 rounded-xl mb-6 flex flex-col md:flex-row items-center gap-3">
+    <input type="password" id="apiKeyInput" placeholder="Pega tu Riot API Key (RGAPI-...)" 
+           class="bg-zinc-950 border border-zinc-800 text-xs px-3 py-2 rounded-lg w-full text-teal-300 focus:outline-none focus:border-teal-500">
+    <button onclick="guardarKey()" class="bg-teal-500 hover:bg-teal-400 text-zinc-950 font-bold px-4 py-2 rounded-lg text-xs transition whitespace-nowrap">
+      Guardar Key
+    </button>
+  </div>
 
   <div onclick="document.getElementById('roflInput').click()" 
        class="border-2 border-dashed border-teal-500/50 hover:border-teal-400 bg-zinc-900/80 p-8 rounded-xl text-center cursor-pointer transition shadow-lg mb-8">
-    <p class="text-sm font-semibold text-zinc-200">📁 Haz clic o arrastra la repetición de la <span class="text-teal-400 font-mono font-bold">Scrim (.rofl)</span> aquí</p>
-    <p class="text-[11px] text-zinc-500 mt-1">Lector profundo de metadatos para partidas personalizadas</p>
+    <p class="text-sm font-semibold text-zinc-200">📁 Haz clic o arrastra tu archivo <span class="text-teal-400 font-mono font-bold">.rofl</span> de Scrim aquí</p>
+    <p class="text-[11px] text-zinc-500 mt-1">Soporta archivos generados por el cliente oficial (ej: LA2-1627415322.rofl)</p>
     <input type="file" id="roflInput" accept=".rofl" class="hidden">
   </div>
 
   <div id="resultado" class="space-y-4"></div>
 
   <script>
+    // TU API KEY POR DEFECTO
+    const DEFAULT_API_KEY = "RGAPI-df67cc3a-5ad0-41d4-bf8e-8a23580f6db1";
+
+    function guardarKey() {
+      const key = document.getElementById('apiKeyInput').value.trim();
+      if (key) {
+        localStorage.setItem('riot_api_key', key);
+        alert("API Key guardada localmente.");
+      }
+    }
+
+    // Cargar Key al iniciar
+    document.getElementById('apiKeyInput').value = localStorage.getItem('riot_api_key') || DEFAULT_API_KEY;
+
     document.getElementById('roflInput').addEventListener('change', function(event) {
       const file = event.target.files[0];
       if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const buffer = e.target.result;
-        
-        // Intentar extracción en UTF-8 y UTF-16
-        let rawText = new TextDecoder('utf-8', { fatal: false }).decode(buffer);
-        let playersData = extractStatsFromText(rawText);
+      const fileName = file.name;
+      // Extrae la región y el ID numérico del nombre del archivo .rofl
+      const match = fileName.match(/([A-Za-z0-9]+)[_-](\d+)/);
 
-        if (!playersData) {
-          // Intento secundario con descompresión de texto binario
-          const uint8 = new Uint8Array(buffer);
-          let strLimpio = "";
-          for (let i = 0; i < uint8.length; i++) {
-            if (uint8[i] >= 32 && uint8[i] <= 126) {
-              strLimpio += String.fromCharCode(uint8[i]);
-            }
-          }
-          playersData = extractStatsFromText(strLimpio);
-        }
+      if (!match) {
+        alert("El nombre del archivo .rofl no contiene un formato estándar de ID (ejemplo válido: LA2-1627415322.rofl)");
+        return;
+      }
 
-        if (playersData && playersData.length > 0) {
-          mostrarTablaScrim(playersData, file.name);
-        } else {
-          alert("No se pudieron leer los metadatos de esta scrim. Asegúrate de que la repetición no esté corrupta o incompleta.");
-        }
-      };
+      const regionRaw = match[1].toUpperCase();
+      const matchNum = match[2];
+      const matchId = `${regionRaw}_${matchNum}`;
+      
+      // Usa la key guardada en el navegador o la key por defecto
+      const apiKey = localStorage.getItem('riot_api_key') || DEFAULT_API_KEY;
 
-      // Leemos los primeros 500 KB del archivo donde se alojan los metadatos de la personalizada
-      reader.readAsArrayBuffer(file.slice(0, 500 * 1024));
+      if (!apiKey) {
+        mostrarFallbackMatchID(fileName, matchId);
+      } else {
+        obtenerDatosRiotAPI(matchId, regionRaw, apiKey, fileName);
+      }
     });
 
-    function extractStatsFromText(text) {
+    async function obtenerDatosRiotAPI(matchId, region, apiKey, fileName) {
+      // Mapear región a cluster de Riot (Americas, Asia, Europe)
+      let routing = "americas";
+      if (["EUW1", "EUN1", "TR1", "RU"].includes(region)) routing = "europe";
+      if (["KR", "JP1"].includes(region)) routing = "asia";
+
+      const url = `https://${routing}.api.riotgames.com/lol/match/v5/matches/${matchId}`;
+
+      document.getElementById('resultado').innerHTML = `
+        <div class="bg-zinc-900 border border-zinc-800 p-6 rounded-lg text-center text-xs font-mono text-teal-400">
+          Consultando Riot Games API para el Match ID: ${matchId}...
+        </div>`;
+
       try {
-        const statsKey = '"statsJson":"';
-        let startIndex = text.indexOf(statsKey);
+        const response = await fetch(url, {
+          headers: { "X-Riot-Token": apiKey }
+        });
 
-        if (startIndex === -1) {
-          // Búsqueda alternativa de la clave de estadísticas
-          const altKey = 'statsJson';
-          startIndex = text.indexOf(altKey);
-          if (startIndex === -1) return null;
-          startIndex = text.indexOf('[', startIndex);
-        } else {
-          startIndex += statsKey.length - 1;
+        if (!response.ok) {
+          throw new Error(`Error HTTP: ${response.status}`);
         }
 
-        const endIndex = text.indexOf(']"', startIndex) + 1;
-        if (startIndex !== -1 && endIndex > startIndex) {
-          let jsonStr = text.substring(startIndex, endIndex);
-          // Limpiar caracteres de escape si existen
-          jsonStr = jsonStr.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-          const parsed = JSON.parse(jsonStr);
-          if (Array.isArray(parsed)) return parsed;
-        }
-      } catch (e) {
-        console.error("Error analizando el bloque de stats:", e);
+        const data = await response.json();
+        const participants = data.info.participants;
+        mostrarTablaScrimAPI(participants, fileName, matchId);
+      } catch (err) {
+        console.error(err);
+        alert("No se pudieron obtener los datos de la API. Recuerda que la API Key caduca cada 24 horas y debes regenerarla en el panel de Riot.");
+        mostrarFallbackMatchID(fileName, matchId);
       }
-      return null;
     }
 
-    function mostrarTablaScrim(players, fileName) {
+    function mostrarTablaScrimAPI(players, fileName, matchId) {
       let html = `
         <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-5 shadow-xl">
           <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
-            <span class="text-xs font-mono text-teal-400 font-semibold">SCRIM: ${fileName}</span>
-            <span class="text-[11px] bg-teal-500/10 text-teal-300 border border-teal-500/20 px-2.5 py-0.5 rounded font-mono">DATOS EXTRAÍDOS CON ÉXITO</span>
+            <span class="text-xs font-mono text-teal-400 font-semibold">SCRIM: ${fileName} (${matchId})</span>
+            <span class="text-[11px] bg-teal-500/10 text-teal-300 border border-teal-500/20 px-2.5 py-0.5 rounded font-mono">DATA REAL DE RIOT API</span>
           </div>
 
           <div class="overflow-x-auto">
@@ -112,19 +130,15 @@
               <tbody class="divide-y divide-zinc-800/50">`;
 
       players.forEach(p => {
-        const isWin = p.WIN_TEAM_NAME === "FINAL_WINDOW_VICTORY" || p.WIN === "Win" || p.win === "1";
+        const isWin = p.win;
         const resText = isWin ? "Victoria" : "Derrota";
         const resColor = isWin ? "text-emerald-400 bg-emerald-500/10" : "text-rose-400 bg-rose-500/10";
 
-        // Mapear el nombre del jugador o Skin
-        const nombreInvocador = p.NAME || p.SUMMONER_NAME || 'Invocador';
-        const campeon = p.SKIN || p.CHAMPION_NAME || 'Campeón';
-
         html += `
           <tr class="hover:bg-zinc-800/30">
-            <td class="p-2.5 font-semibold text-zinc-200">${nombreInvocador}</td>
-            <td class="p-2.5 text-zinc-300">${campeon}</td>
-            <td class="p-2.5 text-zinc-400">${p.KILLS || 0} / ${p.DEATHS || 0} / ${p.ASSISTS || 0}</td>
+            <td class="p-2.5 font-semibold text-zinc-200">${p.summonerName || p.riotIdGameName || 'Invocador'}</td>
+            <td class="p-2.5 text-zinc-300">${p.championName}</td>
+            <td class="p-2.5 text-zinc-400">${p.kills} / ${p.deaths} / ${p.assists}</td>
             <td class="p-2.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${resColor}">${resText}</span></td>
           </tr>`;
       });
@@ -133,6 +147,21 @@
               </tbody>
             </table>
           </div>
+        </div>`;
+
+      document.getElementById('resultado').innerHTML = html;
+    }
+
+    function mostrarFallbackMatchID(fileName, matchId) {
+      let html = `
+        <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 shadow-xl text-center">
+          <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
+            <span class="text-xs font-mono text-teal-400 font-semibold">${fileName}</span>
+            <span class="text-[11px] bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2.5 py-0.5 rounded font-mono">MATCH ID DETECTADO: ${matchId}</span>
+          </div>
+          <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
+            Para obtener los 10 jugadores reales de esta scrim automáticamente, pega una <b>Riot API Key</b> válida en la barra superior.
+          </p>
         </div>`;
 
       document.getElementById('resultado').innerHTML = html;
