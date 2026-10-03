@@ -1,186 +1,429 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Visor de Scrims LoL (.ROFL)</title>
+  <title>SoloQ Analytics Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              bg: '#09090b',
+              card: '#121215',
+              border: '#1f1f24',
+              accent: '#2dd4bf',
+              accentGlow: 'rgba(45, 212, 191, 0.15)',
+            }
+          }
+        }
+      }
+    }
+  </script>
   <style>
-    body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', sans-serif; }
+    body { background-color: #09090b; color: #f4f4f5; }
+    .glow-border { border: 1px solid rgba(45, 212, 191, 0.3); box-shadow: 0 0 15px rgba(45, 212, 191, 0.08); }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #09090b; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
   </style>
 </head>
-<body class="p-6 max-w-4xl mx-auto">
+<body class="p-4 md:p-8 max-w-7xl mx-auto custom-scrollbar">
 
-  <header class="text-center mb-6">
-    <h1 class="text-2xl font-bold text-teal-400 tracking-wide">PARSER DE SCRIMS & MATCH IDs</h1>
-    <p class="text-xs text-zinc-400 mt-1">Obtén datos reales e hiperprecisos de partidas personalizadas</p>
+  <!-- TOP BAR / HEADER -->
+  <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-4 border-b border-brand-border">
+    <div class="flex items-center gap-3">
+      <div class="h-3 w-3 rounded-full bg-brand-accent animate-pulse"></div>
+      <h1 class="text-xl font-bold tracking-tight text-white font-mono">SOLOQ <span class="text-brand-accent">PERFORMANCE</span></h1>
+    </div>
+    
+    <!-- Config API & Roster Quick-Switch -->
+    <div class="flex items-center gap-3 w-full md:w-auto">
+      <input type="text" id="apiKeyInput" placeholder="Riot API Key (RGAPI-...)" 
+             class="bg-brand-card border border-brand-border text-xs px-3 py-2 rounded-lg text-brand-accent focus:outline-none focus:border-brand-accent font-mono w-full md:w-64 transition">
+      <button onclick="guardarKey()" class="bg-brand-accent hover:bg-teal-300 text-zinc-950 font-bold px-4 py-2 rounded-lg text-xs transition">
+        Guardar Key
+      </button>
+    </div>
   </header>
 
-  <!-- Configuración de API Key -->
-  <div class="bg-zinc-900 border border-zinc-800 p-4 rounded-xl mb-6 flex flex-col md:flex-row items-center gap-3">
-    <input type="text" id="apiKeyInput" placeholder="Pega tu Riot API Key (RGAPI-...)" 
-           value="RGAPI-5b7319a9-5787-4e96-acb3-a54a78b3a68a"
-           class="bg-zinc-950 border border-zinc-800 text-xs px-3 py-2 rounded-lg w-full text-teal-300 focus:outline-none focus:border-teal-500 font-mono">
-    <button onclick="guardarKey()" class="bg-teal-500 hover:bg-teal-400 text-zinc-950 font-bold px-4 py-2 rounded-lg text-xs transition whitespace-nowrap">
-      Guardar Key
-    </button>
-  </div>
+  <!-- SECCIÓN SUPERIOR: ROSTER / JUGADORES (MINIMALISTA) -->
+  <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
+    <!-- Player Card 1 (Active) -->
+    <div class="bg-brand-card rounded-xl p-3 border glow-border cursor-pointer transition">
+      <div class="flex items-center justify-between text-[10px] text-zinc-400 font-mono mb-2">
+        <span>TOP</span>
+        <span class="text-brand-accent font-bold">ACTIVO</span>
+      </div>
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-8 h-8 rounded-full bg-zinc-800 border border-brand-accent flex items-center justify-center font-bold text-xs">S</div>
+        <div>
+          <div class="text-xs font-bold text-white truncate">Shavo</div>
+          <div class="text-[10px] text-zinc-400 font-mono">MASTER 1,082 LP</div>
+        </div>
+      </div>
+      <div class="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+        <div class="bg-brand-accent h-full" style="width: 55%"></div>
+      </div>
+      <div class="flex justify-between text-[10px] text-zinc-500 font-mono mt-1">
+        <span>330V 272D</span>
+        <span class="text-zinc-300">55% WR</span>
+      </div>
+    </div>
 
-  <div onclick="document.getElementById('roflInput').click()" 
-       class="border-2 border-dashed border-teal-500/50 hover:border-teal-400 bg-zinc-900/80 p-8 rounded-xl text-center cursor-pointer transition shadow-lg mb-8">
-    <p class="text-sm font-semibold text-zinc-200">📁 Haz clic o arrastra tu archivo <span class="text-teal-400 font-mono font-bold">.rofl</span> de Scrim aquí</p>
-    <p class="text-[11px] text-zinc-500 mt-1">Soporta archivos generados por el cliente oficial (ej: LA2-1627415322.rofl)</p>
-    <input type="file" id="roflInput" accept=".rofl" class="hidden">
-  </div>
+    <!-- Player Card 2 -->
+    <div class="bg-brand-card rounded-xl p-3 border border-brand-border hover:border-zinc-700 cursor-pointer transition opacity-70 hover:opacity-100">
+      <div class="flex items-center justify-between text-[10px] text-zinc-500 font-mono mb-2">
+        <span>JUG</span>
+      </div>
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-xs text-zinc-400">F</div>
+        <div>
+          <div class="text-xs font-bold text-zinc-300 truncate">Friple</div>
+          <div class="text-[10px] text-zinc-500 font-mono">MASTER 178 LP</div>
+        </div>
+      </div>
+      <div class="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+        <div class="bg-blue-500 h-full" style="width: 49%"></div>
+      </div>
+      <div class="flex justify-between text-[10px] text-zinc-500 font-mono mt-1">
+        <span>452V 462D</span>
+        <span>49% WR</span>
+      </div>
+    </div>
 
-  <div id="resultado" class="space-y-4"></div>
+    <!-- Player Card 3 -->
+    <div class="bg-brand-card rounded-xl p-3 border border-brand-border hover:border-zinc-700 cursor-pointer transition opacity-70 hover:opacity-100">
+      <div class="flex items-center justify-between text-[10px] text-zinc-500 font-mono mb-2">
+        <span>MID</span>
+      </div>
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-xs text-zinc-400">I</div>
+        <div>
+          <div class="text-xs font-bold text-zinc-300 truncate">Intensitive</div>
+          <div class="text-[10px] text-zinc-500 font-mono">MASTER 899 LP</div>
+        </div>
+      </div>
+      <div class="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+        <div class="bg-brand-accent h-full" style="width: 51%"></div>
+      </div>
+      <div class="flex justify-between text-[10px] text-zinc-500 font-mono mt-1">
+        <span>581V 568D</span>
+        <span>51% WR</span>
+      </div>
+    </div>
 
-  <script>
-    function guardarKey() {
-      const key = document.getElementById('apiKeyInput').value.trim();
-      if (key) {
-        localStorage.setItem('riot_api_key', key);
-        alert("¡API Key guardada en el navegador!");
-      } else {
-        alert("Por favor pega una API Key válida de Riot.");
-      }
-    }
+    <!-- Player Card 4 -->
+    <div class="bg-brand-card rounded-xl p-3 border border-brand-border hover:border-zinc-700 cursor-pointer transition opacity-70 hover:opacity-100">
+      <div class="flex items-center justify-between text-[10px] text-zinc-500 font-mono mb-2">
+        <span>BOT</span>
+      </div>
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-xs text-zinc-400">A</div>
+        <div>
+          <div class="text-xs font-bold text-zinc-300 truncate">Ace</div>
+          <div class="text-[10px] text-zinc-500 font-mono">MASTER 577 LP</div>
+        </div>
+      </div>
+      <div class="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+        <div class="bg-blue-500 h-full" style="width: 49%"></div>
+      </div>
+      <div class="flex justify-between text-[10px] text-zinc-500 font-mono mt-1">
+        <span>378V 388D</span>
+        <span>49% WR</span>
+      </div>
+    </div>
 
-    const savedKey = localStorage.getItem('riot_api_key');
-    if (savedKey) {
-      document.getElementById('apiKeyInput').value = savedKey;
-    }
+    <!-- Player Card 5 -->
+    <div class="bg-brand-card rounded-xl p-3 border border-brand-border hover:border-zinc-700 cursor-pointer transition opacity-70 hover:opacity-100">
+      <div class="flex items-center justify-between text-[10px] text-zinc-500 font-mono mb-2">
+        <span>SUP</span>
+      </div>
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center font-bold text-xs text-zinc-400">B</div>
+        <div>
+          <div class="text-xs font-bold text-zinc-300 truncate">Batatwinz</div>
+          <div class="text-[10px] text-zinc-500 font-mono">MASTER 1,135 LP</div>
+        </div>
+      </div>
+      <div class="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+        <div class="bg-brand-accent h-full" style="width: 52%"></div>
+      </div>
+      <div class="flex justify-between text-[10px] text-zinc-500 font-mono mt-1">
+        <span>546V 495D</span>
+        <span>52% WR</span>
+      </div>
+    </div>
+  </section>
 
-    document.getElementById('roflInput').addEventListener('change', function(event) {
-      const file = event.target.files[0];
-      if (!file) return;
+  <!-- PANEL PRINCIPAL INDIVIDUAL: SHAVO -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    
+    <!-- COLUMNA IZQUIERDA: PROFILE & METRICS RADAR -->
+    <div class="bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col justify-between">
+      <div>
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h2 class="text-xl font-bold text-white">SHAVO</h2>
+            <p class="text-xs text-brand-accent font-mono">TOP LANER • SOLOQ MASTER</p>
+          </div>
+          <span class="px-2.5 py-1 bg-brand-accentGlow text-brand-accent border border-brand-accent/20 rounded-full text-[11px] font-mono font-semibold">100% WR (Últimas)</span>
+        </div>
 
-      const fileName = file.name;
-      const match = fileName.match(/([A-Za-z0-9]+)[_-](\d+)/);
+        <!-- Metric Badges Minimalistas -->
+        <div class="grid grid-cols-2 gap-3 mb-6 font-mono">
+          <div class="bg-zinc-950 p-3 rounded-xl border border-brand-border">
+            <div class="text-[10px] text-zinc-500">KDA PROMEDIO</div>
+            <div class="text-base font-bold text-white mt-0.5">3.6 / 2.8 / 6.5</div>
+            <div class="text-[10px] text-brand-accent">3.61:1 Ratio</div>
+          </div>
+          <div class="bg-zinc-950 p-3 rounded-xl border border-brand-border">
+            <div class="text-[10px] text-zinc-500">CS / MIN</div>
+            <div class="text-base font-bold text-white mt-0.5">8.1</div>
+            <div class="text-[10px] text-zinc-400">443 GPM</div>
+          </div>
+          <div class="bg-zinc-950 p-3 rounded-xl border border-brand-border">
+            <div class="text-[10px] text-zinc-500">KILL PARTICIPATION</div>
+            <div class="text-base font-bold text-white mt-0.5">46%</div>
+            <div class="text-[10px] text-zinc-400">Alto impacto</div>
+          </div>
+          <div class="bg-zinc-950 p-3 rounded-xl border border-brand-border">
+            <div class="text-[10px] text-zinc-500">CONTROL VISION</div>
+            <div class="text-base font-bold text-white mt-0.5">24.6</div>
+            <div class="text-[10px] text-zinc-400">4 Wards/Game</div>
+          </div>
+        </div>
+      </div>
 
-      if (!match) {
-        alert("El nombre del archivo .rofl no contiene un formato estándar de ID (ej: LA2-1627415322.rofl)");
-        return;
-      }
+      <!-- RADAR CHART -->
+      <div class="h-48 w-full flex items-center justify-center">
+        <canvas id="radarChart"></canvas>
+      </div>
+    </div>
 
-      const regionRaw = match[1].toUpperCase();
-      const matchNum = match[2];
-      const matchId = `${regionRaw}_${matchNum}`;
+    <!-- COLUMNA CENTRAL & DERECHA: EVOLUCIÓN LP + HISTORIAL -->
+    <div class="lg:col-span-2 flex flex-col gap-6">
       
-      const apiKey = (document.getElementById('apiKeyInput').value || localStorage.getItem('riot_api_key') || '').trim();
+      <!-- GRÁFICO EVOLUCIÓN LP -->
+      <div class="bg-brand-card border border-brand-border rounded-2xl p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xs font-mono font-semibold text-zinc-400 tracking-wider">EVOLUCIÓN DE LP (14 DÍAS)</h3>
+          <span class="text-xs font-mono text-brand-accent font-bold">+162 LP este ciclo</span>
+        </div>
+        <div class="h-44 w-full">
+          <canvas id="lpChart"></canvas>
+        </div>
+      </div>
 
-      if (!apiKey) {
-        alert("Debes escribir o pegar tu Riot API Key antes de cargar el archivo.");
-        mostrarFallbackMatchID(fileName, matchId);
-        return;
+      <!-- HISTORIAL DE PARTIDAS -->
+      <div class="bg-brand-card border border-brand-border rounded-2xl p-5 flex-1">
+        <h3 class="text-xs font-mono font-semibold text-zinc-400 tracking-wider mb-4">HISTORIAL DE RECIENTES</h3>
+        
+        <div class="space-y-2 font-mono">
+          <!-- Game 1 -->
+          <div class="flex items-center justify-between p-3 bg-zinc-950 border border-brand-border hover:border-brand-accent/40 rounded-xl transition">
+            <div class="flex items-center gap-3">
+              <span class="w-1.5 h-8 bg-emerald-400 rounded-full"></span>
+              <div>
+                <div class="text-xs font-bold text-white">Jayce <span class="text-zinc-500 text-[10px] font-normal">vs DrMundo</span></div>
+                <div class="text-[10px] text-zinc-500">Victoria • Hace 6h</div>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs font-bold text-emerald-400">4 / 2 / 7</div>
+              <div class="text-[10px] text-zinc-400">5.50 KDA</div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs font-bold text-white">9.2 <span class="text-[10px] text-zinc-500">CS/m</span></div>
+              <div class="text-[10px] text-brand-accent">+1247 @15</div>
+            </div>
+          </div>
+
+          <!-- Game 2 -->
+          <div class="flex items-center justify-between p-3 bg-zinc-950 border border-brand-border hover:border-brand-accent/40 rounded-xl transition">
+            <div class="flex items-center gap-3">
+              <span class="w-1.5 h-8 bg-emerald-400 rounded-full"></span>
+              <div>
+                <div class="text-xs font-bold text-white">Nasus <span class="text-zinc-500 text-[10px] font-normal">vs Kassadin</span></div>
+                <div class="text-[10px] text-zinc-500">Victoria • Hace 7h</div>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs font-bold text-emerald-400">14 / 2 / 8</div>
+              <div class="text-[10px] text-zinc-400">11.00 KDA</div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs font-bold text-white">8.8 <span class="text-[10px] text-zinc-500">CS/m</span></div>
+              <div class="text-[10px] text-brand-accent">+1631 @15</div>
+            </div>
+          </div>
+
+          <!-- Game 3 -->
+          <div class="flex items-center justify-between p-3 bg-zinc-950 border border-brand-border hover:border-rose-500/40 rounded-xl transition">
+            <div class="flex items-center gap-3">
+              <span class="w-1.5 h-8 bg-rose-500 rounded-full"></span>
+              <div>
+                <div class="text-xs font-bold text-white">Jax <span class="text-zinc-500 text-[10px] font-normal">vs KSante</span></div>
+                <div class="text-[10px] text-zinc-500">Derrota • Hace 8h</div>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs font-bold text-rose-400">5 / 5 / 5</div>
+              <div class="text-[10px] text-zinc-400">2.00 KDA</div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs font-bold text-white">6.5 <span class="text-[10px] text-zinc-500">CS/m</span></div>
+              <div class="text-[10px] text-rose-400">-113 @15</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TABLA DE CHAMPION POOL (MINIMALISTA) -->
+  <section class="bg-brand-card border border-brand-border rounded-2xl p-5">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xs font-mono font-semibold text-zinc-400 tracking-wider">CHAMPION POOL INDIVIDUAL</h3>
+      <input type="text" placeholder="Filtrar campeón..." class="bg-zinc-950 border border-brand-border text-xs px-3 py-1.5 rounded-lg text-zinc-300 focus:outline-none focus:border-brand-accent font-mono w-48">
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left font-mono text-xs">
+        <thead>
+          <tr class="text-zinc-500 border-b border-brand-border bg-zinc-950/40">
+            <th class="p-3">CAMPEÓN</th>
+            <th class="p-3">PARTIDAS</th>
+            <th class="p-3">WINRATE</th>
+            <th class="p-3">KDA PROMEDIO</th>
+            <th class="p-3">KP%</th>
+            <th class="p-3">CS/MIN</th>
+            <th class="p-3">DAÑO/MIN</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-brand-border">
+          <tr class="hover:bg-zinc-900/50 transition">
+            <td class="p-3 font-bold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-brand-accent"></span> Jax
+            </td>
+            <td class="p-3 text-zinc-400">2 (2V - 0D)</td>
+            <td class="p-3 text-emerald-400 font-bold">100%</td>
+            <td class="p-3 text-zinc-300">2.5 / 3.0 / 6.0 <span class="text-brand-accent text-[10px] block">2.83:1</span></td>
+            <td class="p-3 text-zinc-400">47%</td>
+            <td class="p-3 text-zinc-300">7.3</td>
+            <td class="p-3 text-zinc-300">537</td>
+          </tr>
+          <tr class="hover:bg-zinc-900/50 transition">
+            <td class="p-3 font-bold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-brand-accent"></span> Ambessa
+            </td>
+            <td class="p-3 text-zinc-400">1 (1V - 0D)</td>
+            <td class="p-3 text-emerald-400 font-bold">100%</td>
+            <td class="p-3 text-zinc-300">5.0 / 0.0 / 4.0 <span class="text-brand-accent text-[10px] block">9.00:1</span></td>
+            <td class="p-3 text-zinc-400">45%</td>
+            <td class="p-3 text-zinc-300">9.9</td>
+            <td class="p-3 text-zinc-300">779</td>
+          </tr>
+          <tr class="hover:bg-zinc-900/50 transition">
+            <td class="p-3 font-bold text-white flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-brand-accent"></span> Gwen
+            </td>
+            <td class="p-3 text-zinc-400">1 (1V - 0D)</td>
+            <td class="p-3 text-emerald-400 font-bold">100%</td>
+            <td class="p-3 text-zinc-300">4.0 / 5.0 / 6.0 <span class="text-brand-accent text-[10px] block">2.00:1</span></td>
+            <td class="p-3 text-zinc-400">29%</td>
+            <td class="p-3 text-zinc-300">7.6</td>
+            <td class="p-3 text-zinc-300">734</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- LÓGICA DE GRÁFICOS (CHART.JS) -->
+  <script>
+    // 1. Radar Chart (Perfil Analítico)
+    const ctxRadar = document.getElementById('radarChart').getContext('2d');
+    new Chart(ctxRadar, {
+      type: 'radar',
+      data: {
+        labels: ['Farm', 'KDA', 'Visión', 'Daño/min', 'KP%'],
+        datasets: [{
+          data: [85, 75, 60, 90, 65],
+          borderColor: '#2dd4bf',
+          backgroundColor: 'rgba(45, 212, 191, 0.15)',
+          borderWidth: 2,
+          pointBackgroundColor: '#2dd4bf',
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          r: {
+            angleLines: { color: '#1f1f24' },
+            grid: { color: '#1f1f24' },
+            pointLabels: { color: '#a1a1aa', font: { family: 'JetBrains Mono', size: 10 } },
+            ticks: { display: false }
+          }
+        }
       }
-
-      localStorage.setItem('riot_api_key', apiKey);
-      obtenerDatosRiotAPI(matchId, regionRaw, apiKey, fileName);
     });
 
-    async function obtenerDatosRiotAPI(matchId, region, apiKey, fileName) {
-      let routing = "americas";
-      if (["EUW1", "EUN1", "TR1", "RU"].includes(region)) routing = "europe";
-      if (["KR", "JP1"].includes(region)) routing = "asia";
-
-      // Incluimos la API Key en la URL para que no sea bloqueada por headers en el Proxy
-      const targetUrl = `https://${routing}.api.riotgames.com/lol/match/v5/matches/${matchId}?api_key=${apiKey}`;
-      const proxyUrl = `https://api.allorigins.win/raw?url=` + encodeURIComponent(targetUrl);
-
-      document.getElementById('resultado').innerHTML = `
-        <div class="bg-zinc-900 border border-zinc-800 p-6 rounded-lg text-center text-xs font-mono text-teal-400 animate-pulse">
-          Consultando API de Riot Games para Match ID: ${matchId}...
-        </div>`;
-
-      try {
-        const response = await fetch(proxyUrl);
-
-        if (response.status === 401 || response.status === 403) {
-          throw new Error("API Key rechazada por Riot (Error 401/403). Verifica que la clave no haya vencido.");
+    // 2. Line Chart (Evolución LP)
+    const ctxLP = document.getElementById('lpChart').getContext('2d');
+    new Chart(ctxLP, {
+      type: 'line',
+      data: {
+        labels: ['26/09', '27/09', '28/09', '29/09', '30/09', '01/10', '02/10', '03/10'],
+        datasets: [{
+          data: [920, 890, 910, 960, 980, 985, 1010, 1082],
+          borderColor: '#2dd4bf',
+          borderWidth: 2,
+          tension: 0.4,
+          pointBackgroundColor: '#09090b',
+          pointBorderColor: '#2dd4bf',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          fill: true,
+          backgroundColor: (context) => {
+            const ctx = context.chart.ctx;
+            const gradient = ctx.createLinearGradient(0, 0, 0, 180);
+            gradient.addColorStop(0, 'rgba(45, 212, 191, 0.2)');
+            gradient.addColorStop(1, 'rgba(45, 212, 191, 0.0)');
+            return gradient;
+          }
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#71717a', font: { family: 'JetBrains Mono', size: 10 } } },
+          y: { grid: { color: '#1f1f24' }, ticks: { color: '#71717a', font: { family: 'JetBrains Mono', size: 10 } } }
         }
-
-        if (response.status === 404) {
-          throw new Error("Partida no encontrada (Error 404). Las scrims personalizadas antiguas no quedan guardadas en la API.");
-        }
-
-        if (!response.ok) {
-          throw new Error(`Error en la consulta (Status ${response.status}).`);
-        }
-
-        const data = await response.json();
-        
-        if (!data || !data.info) {
-          throw new Error("No se encontraron detalles para este Match ID.");
-        }
-
-        const participants = data.info.participants;
-        mostrarTablaScrimAPI(participants, fileName, matchId);
-      } catch (err) {
-        console.error(err);
-        alert(err.message);
-        mostrarFallbackMatchID(fileName, matchId);
       }
-    }
+    });
 
-    function mostrarTablaScrimAPI(players, fileName, matchId) {
-      let html = `
-        <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-5 shadow-xl">
-          <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
-            <span class="text-xs font-mono text-teal-400 font-semibold">SCRIM: ${fileName} (${matchId})</span>
-            <span class="text-[11px] bg-teal-500/10 text-teal-300 border border-teal-500/20 px-2.5 py-0.5 rounded font-mono">DATA REAL DE RIOT API</span>
-          </div>
-
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs font-mono">
-              <thead>
-                <tr class="text-zinc-400 border-b border-zinc-800 bg-zinc-950/50">
-                  <th class="p-2.5">INVOCADOR</th>
-                  <th class="p-2.5">CAMPEÓN</th>
-                  <th class="p-2.5">K / D / A</th>
-                  <th class="p-2.5">RESULTADO</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-zinc-800/50">`;
-
-      players.forEach(p => {
-        const isWin = p.win;
-        const resText = isWin ? "Victoria" : "Derrota";
-        const resColor = isWin ? "text-emerald-400 bg-emerald-500/10" : "text-rose-400 bg-rose-500/10";
-        const nameToShow = p.riotIdGameName ? `${p.riotIdGameName}#${p.riotIdTagline}` : (p.summonerName || 'Invocador');
-
-        html += `
-          <tr class="hover:bg-zinc-800/30">
-            <td class="p-2.5 font-semibold text-zinc-200">${nameToShow}</td>
-            <td class="p-2.5 text-zinc-300">${p.championName}</td>
-            <td class="p-2.5 text-zinc-400">${p.kills} / ${p.deaths} / ${p.assists}</td>
-            <td class="p-2.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${resColor}">${resText}</span></td>
-          </tr>`;
-      });
-
-      html += `
-              </tbody>
-            </table>
-          </div>
-        </div>`;
-
-      document.getElementById('resultado').innerHTML = html;
-    }
-
-    function mostrarFallbackMatchID(fileName, matchId) {
-      let html = `
-        <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 shadow-xl text-center">
-          <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
-            <span class="text-xs font-mono text-teal-400 font-semibold">${fileName}</span>
-            <span class="text-[11px] bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2.5 py-0.5 rounded font-mono">MATCH ID DETECTADO: ${matchId}</span>
-          </div>
-          <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
-            Para obtener los 10 jugadores reales de esta scrim, ingresa una <b>Riot API Key activa</b> en la casilla superior y pulsa <b>Guardar Key</b>.
-          </p>
-        </div>`;
-
-      document.getElementById('resultado').innerHTML = html;
+    function guardarKey() {
+      const key = document.getElementById('apiKeyInput').value.trim();
+      if(key) {
+        localStorage.setItem('riot_api_key', key);
+        alert('API Key guardada correctamente.');
+      }
     }
   </script>
 </body>
