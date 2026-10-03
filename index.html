@@ -3,24 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Visor de Replays LoL (.ROFL)</title>
+  <title>Visor de Scrims LoL (.ROFL)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', sans-serif; }
   </style>
 </head>
-<body class="p-6 max-w-4xl mx-auto">
+<body class="p-6 max-w-5xl mx-auto">
 
   <header class="text-center mb-8">
-    <h1 class="text-2xl font-bold text-teal-400 tracking-wide">VISOR AUTOMÁTICO DE ARCHIVOS .ROFL</h1>
-    <p class="text-xs text-zinc-400 mt-1">Extrae métricas reales a partir del ID de la partida</p>
+    <h1 class="text-2xl font-bold text-teal-400 tracking-wide">PARSER DE SCRIMS & CUSTOM GAMES (.ROFL)</h1>
+    <p class="text-xs text-zinc-400 mt-1">Extrae métricas reales de partidas privadas sin necesidad de la API de Riot</p>
   </header>
 
   <div onclick="document.getElementById('roflInput').click()" 
        class="border-2 border-dashed border-teal-500/50 hover:border-teal-400 bg-zinc-900/80 p-8 rounded-xl text-center cursor-pointer transition shadow-lg mb-8">
-    <p class="text-sm font-semibold text-zinc-200">📁 Haz clic o arrastra tu archivo <span class="text-teal-400 font-mono font-bold">.rofl</span> aquí</p>
-    <p class="text-[11px] text-zinc-500 mt-1">Detección automática de Match ID e integración con historial oficial</p>
+    <p class="text-sm font-semibold text-zinc-200">📁 Haz clic o arrastra la repetición de la <span class="text-teal-400 font-mono font-bold">Scrim (.rofl)</span> aquí</p>
+    <p class="text-[11px] text-zinc-500 mt-1">Lector profundo de metadatos para partidas personalizadas</p>
     <input type="file" id="roflInput" accept=".rofl" class="hidden">
   </div>
 
@@ -31,55 +31,108 @@
       const file = event.target.files[0];
       if (!file) return;
 
-      const fileName = file.name;
-      // Extrae la región y el ID del nombre del archivo (ej: LA2-1627415322.rofl -> LA2_1627415322)
-      const matchIdMatch = fileName.match(/([A-Za-z0-9]+)[_-](\d+)/);
-
-      if (matchIdMatch) {
-        const region = matchIdMatch[1].toLowerCase();
-        const matchId = matchIdMatch[1].toUpperCase() + '_' + matchIdMatch[2];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const buffer = e.target.result;
         
-        mostrarResultadoMatch(fileName, region, matchId);
-      } else {
-        alert("El nombre del archivo no contiene un ID de partida válido (ej: LA2-1627415322.rofl).");
-      }
-    });
+        // Intentar extracción en UTF-8 y UTF-16
+        let rawText = new TextDecoder('utf-8', { fatal: false }).decode(buffer);
+        let playersData = extractStatsFromText(rawText);
 
-    function mostrarResultadoMatch(fileName, region, matchId) {
-      // Mapear regiones a op.gg
-      const opggRegionMap = {
-        'la1': 'lan',
-        'la2': 'las',
-        'na1': 'na',
-        'euw1': 'euw',
-        'eun1': 'eune',
-        'kr': 'kr',
-        'br1': 'br'
+        if (!playersData) {
+          // Intento secundario con descompresión de texto binario
+          const uint8 = new Uint8Array(buffer);
+          let strLimpio = "";
+          for (let i = 0; i < uint8.length; i++) {
+            if (uint8[i] >= 32 && uint8[i] <= 126) {
+              strLimpio += String.fromCharCode(uint8[i]);
+            }
+          }
+          playersData = extractStatsFromText(strLimpio);
+        }
+
+        if (playersData && playersData.length > 0) {
+          mostrarTablaScrim(playersData, file.name);
+        } else {
+          alert("No se pudieron leer los metadatos de esta scrim. Asegúrate de que la repetición no esté corrupta o incompleta.");
+        }
       };
 
-      const opggRegion = opggRegionMap[region] || 'las';
-      const opggUrl = `https://www.op.gg/matches/${opggRegion}/${matchId}`;
+      // Leemos los primeros 500 KB del archivo donde se alojan los metadatos de la personalizada
+      reader.readAsArrayBuffer(file.slice(0, 500 * 1024));
+    });
 
+    function extractStatsFromText(text) {
+      try {
+        const statsKey = '"statsJson":"';
+        let startIndex = text.indexOf(statsKey);
+
+        if (startIndex === -1) {
+          // Búsqueda alternativa de la clave de estadísticas
+          const altKey = 'statsJson';
+          startIndex = text.indexOf(altKey);
+          if (startIndex === -1) return null;
+          startIndex = text.indexOf('[', startIndex);
+        } else {
+          startIndex += statsKey.length - 1;
+        }
+
+        const endIndex = text.indexOf(']"', startIndex) + 1;
+        if (startIndex !== -1 && endIndex > startIndex) {
+          let jsonStr = text.substring(startIndex, endIndex);
+          // Limpiar caracteres de escape si existen
+          jsonStr = jsonStr.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+          const parsed = JSON.parse(jsonStr);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) {
+        console.error("Error analizando el bloque de stats:", e);
+      }
+      return null;
+    }
+
+    function mostrarTablaScrim(players, fileName) {
       let html = `
-        <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 shadow-xl text-center">
-          <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-6">
-            <span class="text-xs font-mono text-teal-400 font-semibold">${fileName}</span>
-            <span class="text-[11px] bg-teal-500/10 text-teal-300 border border-teal-500/20 px-2.5 py-0.5 rounded font-mono">MATCH ID DETECTADO</span>
+        <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-5 shadow-xl">
+          <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
+            <span class="text-xs font-mono text-teal-400 font-semibold">SCRIM: ${fileName}</span>
+            <span class="text-[11px] bg-teal-500/10 text-teal-300 border border-teal-500/20 px-2.5 py-0.5 rounded font-mono">DATOS EXTRAÍDOS CON ÉXITO</span>
           </div>
 
-          <div class="my-6 p-4 bg-zinc-950/60 rounded-lg border border-zinc-800/80">
-            <p class="text-xs text-zinc-400 mb-1">ID Único de Partida (Riot Games)</p>
-            <p class="text-xl font-mono font-bold text-teal-400 tracking-wider">${matchId}</p>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+              <thead>
+                <tr class="text-zinc-400 border-b border-zinc-800 bg-zinc-950/50">
+                  <th class="p-2.5">INVOCADOR</th>
+                  <th class="p-2.5">CAMPEÓN</th>
+                  <th class="p-2.5">K / D / A</th>
+                  <th class="p-2.5">RESULTADO</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-zinc-800/50">`;
+
+      players.forEach(p => {
+        const isWin = p.WIN_TEAM_NAME === "FINAL_WINDOW_VICTORY" || p.WIN === "Win" || p.win === "1";
+        const resText = isWin ? "Victoria" : "Derrota";
+        const resColor = isWin ? "text-emerald-400 bg-emerald-500/10" : "text-rose-400 bg-rose-500/10";
+
+        // Mapear el nombre del jugador o Skin
+        const nombreInvocador = p.NAME || p.SUMMONER_NAME || 'Invocador';
+        const campeon = p.SKIN || p.CHAMPION_NAME || 'Campeón';
+
+        html += `
+          <tr class="hover:bg-zinc-800/30">
+            <td class="p-2.5 font-semibold text-zinc-200">${nombreInvocador}</td>
+            <td class="p-2.5 text-zinc-300">${campeon}</td>
+            <td class="p-2.5 text-zinc-400">${p.KILLS || 0} / ${p.DEATHS || 0} / ${p.ASSISTS || 0}</td>
+            <td class="p-2.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${resColor}">${resText}</span></td>
+          </tr>`;
+      });
+
+      html += `
+              </tbody>
+            </table>
           </div>
-
-          <p class="text-xs text-zinc-300 mb-6 leading-relaxed">
-            Los datos detallados de esta partida están registrados en los servidores de Riot.<br>Puedes consultar el desglose completo de la partida en OP.GG:
-          </p>
-
-          <a href="${opggUrl}" target="_blank" 
-             class="inline-flex items-center justify-center gap-2 bg-teal-500 hover:bg-teal-400 text-zinc-950 font-bold px-6 py-3 rounded-lg text-xs transition shadow-lg shadow-teal-500/10">
-            📊 Abrir Análisis Completo en OP.GG
-          </a>
         </div>`;
 
       document.getElementById('resultado').innerHTML = html;
