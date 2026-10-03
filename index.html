@@ -14,13 +14,13 @@
 
   <header class="text-center mb-8">
     <h1 class="text-2xl font-bold text-teal-400 tracking-wide">VISOR AUTOMÁTICO DE ARCHIVOS .ROFL</h1>
-    <p class="text-xs text-zinc-400 mt-1">Extrae métricas de partidas de League of Legends de forma 100% autónoma</p>
+    <p class="text-xs text-zinc-400 mt-1">Extrae métricas reales a partir del ID de la partida</p>
   </header>
 
   <div onclick="document.getElementById('roflInput').click()" 
        class="border-2 border-dashed border-teal-500/50 hover:border-teal-400 bg-zinc-900/80 p-8 rounded-xl text-center cursor-pointer transition shadow-lg mb-8">
     <p class="text-sm font-semibold text-zinc-200">📁 Haz clic o arrastra tu archivo <span class="text-teal-400 font-mono font-bold">.rofl</span> aquí</p>
-    <p class="text-[11px] text-zinc-500 mt-1">Lector de metadatos optimizado sin confirmación manual</p>
+    <p class="text-[11px] text-zinc-500 mt-1">Detección automática de Match ID e integración con historial oficial</p>
     <input type="file" id="roflInput" accept=".rofl" class="hidden">
   </div>
 
@@ -31,92 +31,55 @@
       const file = event.target.files[0];
       if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const buffer = e.target.result;
-        const textDecoder = new TextDecoder('utf-8', { fatal: false });
-        const text = textDecoder.decode(buffer);
+      const fileName = file.name;
+      // Extrae la región y el ID del nombre del archivo (ej: LA2-1627415322.rofl -> LA2_1627415322)
+      const matchIdMatch = fileName.match(/([A-Za-z0-9]+)[_-](\d+)/);
 
-        let parsedPlayers = null;
-        let gameWin = " Victoria";
-
-        // Intentar buscar cualquier objeto JSON dentro de los metadatos del binario
-        const jsonMatch = text.match(/\{"gameLength".*?\}/s) || text.match(/\{"statsJson":".*?"\}/s);
-
-        if (jsonMatch) {
-          try {
-            let cleanStr = jsonMatch[0];
-            const parsed = JSON.parse(cleanStr);
-
-            if (parsed.statsJson) {
-              const statsArr = JSON.parse(parsed.statsJson);
-              if (Array.isArray(statsArr) && statsArr.length > 0) {
-                parsedPlayers = statsArr;
-              }
-            }
-          } catch(err) {
-            console.log("Extracción directa fallida, pasando al procesador de respaldo.");
-          }
-        }
-
-        // Si la extracción estricta del JSON falla por cambios en el parche de Riot, genera la tabla mapeada
-        if (!parsedPlayers) {
-          const defaultChamps = ["Gnar", "Sejuani", "Ahri", "Ezreal", "Lux"];
-          parsedPlayers = defaultChamps.map((champ, idx) => ({
-            NAME: `Jugador_${idx + 1}`,
-            SKIN: champ,
-            KILLS: Math.floor(Math.random() * 8) + 2,
-            DEATHS: Math.floor(Math.random() * 5) + 1,
-            ASSISTS: Math.floor(Math.random() * 10) + 4,
-            WIN_TEAM_NAME: idx < 5 ? "FINAL_WINDOW_VICTORY" : "FINAL_WINDOW_DEFEAT"
-          }));
-        }
-
-        mostrarTabla(parsedPlayers, file.name);
-      };
-
-      // Leer los primeros 250 KB del archivo para asegurar la captura completa
-      reader.readAsArrayBuffer(file.slice(0, 250 * 1024));
+      if (matchIdMatch) {
+        const region = matchIdMatch[1].toLowerCase();
+        const matchId = matchIdMatch[1].toUpperCase() + '_' + matchIdMatch[2];
+        
+        mostrarResultadoMatch(fileName, region, matchId);
+      } else {
+        alert("El nombre del archivo no contiene un ID de partida válido (ej: LA2-1627415322.rofl).");
+      }
     });
 
-    function mostrarTabla(players, fileName) {
+    function mostrarResultadoMatch(fileName, region, matchId) {
+      // Mapear regiones a op.gg
+      const opggRegionMap = {
+        'la1': 'lan',
+        'la2': 'las',
+        'na1': 'na',
+        'euw1': 'euw',
+        'eun1': 'eune',
+        'kr': 'kr',
+        'br1': 'br'
+      };
+
+      const opggRegion = opggRegionMap[region] || 'las';
+      const opggUrl = `https://www.op.gg/matches/${opggRegion}/${matchId}`;
+
       let html = `
-        <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-5 shadow-xl">
-          <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-6 shadow-xl text-center">
+          <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-6">
             <span class="text-xs font-mono text-teal-400 font-semibold">${fileName}</span>
-            <span class="text-[11px] bg-teal-500/10 text-teal-300 border border-teal-500/20 px-2.5 py-0.5 rounded font-mono">PROCESADO CON ÉXITO</span>
+            <span class="text-[11px] bg-teal-500/10 text-teal-300 border border-teal-500/20 px-2.5 py-0.5 rounded font-mono">MATCH ID DETECTADO</span>
           </div>
 
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs font-mono">
-              <thead>
-                <tr class="text-zinc-400 border-b border-zinc-800 bg-zinc-950/50">
-                  <th class="p-2.5">INVOCADOR</th>
-                  <th class="p-2.5">CAMPEÓN</th>
-                  <th class="p-2.5">K / D / A</th>
-                  <th class="p-2.5">RESULTADO</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-zinc-800/50">`;
-
-      players.forEach(p => {
-        const isWin = p.WIN_TEAM_NAME === "FINAL_WINDOW_VICTORY" || p.WIN === "Win" || p.win === true;
-        const resText = isWin ? "Victoria" : "Derrota";
-        const resColor = isWin ? "text-emerald-400 bg-emerald-500/10" : "text-rose-400 bg-rose-500/10";
-
-        html += `
-          <tr class="hover:bg-zinc-800/30">
-            <td class="p-2.5 font-semibold text-zinc-200">${p.NAME || p.summonerName || 'Jugador'}</td>
-            <td class="p-2.5 text-zinc-300">${p.SKIN || p.championName || 'Campeón'}</td>
-            <td class="p-2.5 text-zinc-400">${p.KILLS || 0} / ${p.DEATHS || 0} / ${p.ASSISTS || 0}</td>
-            <td class="p-2.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${resColor}">${resText}</span></td>
-          </tr>`;
-      });
-
-      html += `
-              </tbody>
-            </table>
+          <div class="my-6 p-4 bg-zinc-950/60 rounded-lg border border-zinc-800/80">
+            <p class="text-xs text-zinc-400 mb-1">ID Único de Partida (Riot Games)</p>
+            <p class="text-xl font-mono font-bold text-teal-400 tracking-wider">${matchId}</p>
           </div>
+
+          <p class="text-xs text-zinc-300 mb-6 leading-relaxed">
+            Los datos detallados de esta partida están registrados en los servidores de Riot.<br>Puedes consultar el desglose completo de la partida en OP.GG:
+          </p>
+
+          <a href="${opggUrl}" target="_blank" 
+             class="inline-flex items-center justify-center gap-2 bg-teal-500 hover:bg-teal-400 text-zinc-950 font-bold px-6 py-3 rounded-lg text-xs transition shadow-lg shadow-teal-500/10">
+            📊 Abrir Análisis Completo en OP.GG
+          </a>
         </div>`;
 
       document.getElementById('resultado').innerHTML = html;
