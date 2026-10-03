@@ -20,6 +20,7 @@
   <!-- Configuración de API Key -->
   <div class="bg-zinc-900 border border-zinc-800 p-4 rounded-xl mb-6 flex flex-col md:flex-row items-center gap-3">
     <input type="text" id="apiKeyInput" placeholder="Pega tu Riot API Key (RGAPI-...)" 
+           value="RGAPI-5b7319a9-5787-4e96-acb3-a54a78b3a68a"
            class="bg-zinc-950 border border-zinc-800 text-xs px-3 py-2 rounded-lg w-full text-teal-300 focus:outline-none focus:border-teal-500 font-mono">
     <button onclick="guardarKey()" class="bg-teal-500 hover:bg-teal-400 text-zinc-950 font-bold px-4 py-2 rounded-lg text-xs transition whitespace-nowrap">
       Guardar Key
@@ -46,7 +47,11 @@
       }
     }
 
-    document.getElementById('apiKeyInput').value = localStorage.getItem('riot_api_key') || '';
+    // Prioriza la Key en el input o la guardada previamente
+    const savedKey = localStorage.getItem('riot_api_key');
+    if (savedKey) {
+      document.getElementById('apiKeyInput').value = savedKey;
+    }
 
     document.getElementById('roflInput').addEventListener('change', function(event) {
       const file = event.target.files[0];
@@ -64,11 +69,10 @@
       const matchNum = match[2];
       const matchId = `${regionRaw}_${matchNum}`;
       
-      // Obtiene la clave ingresada en la casilla o guardada en la memoria
       const apiKey = (document.getElementById('apiKeyInput').value || localStorage.getItem('riot_api_key') || '').trim();
 
       if (!apiKey) {
-        alert("Debes pegar tu Riot API Key en el recuadro superior.");
+        alert("Debes escribir o pegar tu Riot API Key antes de cargar el archivo.");
         mostrarFallbackMatchID(fileName, matchId);
         return;
       }
@@ -96,15 +100,15 @@
         });
 
         if (response.status === 401 || response.status === 403) {
-          throw new Error("API Key no autorizada o vencida (Error 401/403). Verifica la clave en Riot.");
+          throw new Error("API Key rechazada por Riot (Error 401/403). Verifica que la clave no haya caducado.");
         }
 
         if (response.status === 404) {
-          throw new Error("Partida no encontrada (Error 404). Las scrims personalizadas antiguas no quedan almacenadas en la API de Riot.");
+          throw new Error("Partida no encontrada en la API de Riot (Error 404). Las scrims personalizadas antiguas no quedan registradas.");
         }
 
         if (!response.ok) {
-          throw new Error(`Error de servidor (Status ${response.status}).`);
+          throw new Error(`Error en la consulta (Status ${response.status}).`);
         }
 
         const data = await response.json();
