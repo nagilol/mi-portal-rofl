@@ -40,13 +40,12 @@
       const key = document.getElementById('apiKeyInput').value.trim();
       if (key) {
         localStorage.setItem('riot_api_key', key);
-        alert("¡API Key guardada correctamente!");
+        alert("¡API Key guardada en el navegador!");
       } else {
         alert("Por favor pega una API Key válida de Riot.");
       }
     }
 
-    // Cargar Key guardada al abrir la página
     document.getElementById('apiKeyInput').value = localStorage.getItem('riot_api_key') || '';
 
     document.getElementById('roflInput').addEventListener('change', function(event) {
@@ -54,37 +53,36 @@
       if (!file) return;
 
       const fileName = file.name;
-      // Extrae la región y el ID numérico del nombre del archivo .rofl
       const match = fileName.match(/([A-Za-z0-9]+)[_-](\d+)/);
 
       if (!match) {
-        alert("El nombre del archivo .rofl no contiene un formato estándar de ID (ejemplo válido: LA2-1627415322.rofl)");
+        alert("El nombre del archivo .rofl no contiene un formato estándar de ID (ej: LA2-1627415322.rofl)");
         return;
       }
 
       const regionRaw = match[1].toUpperCase();
       const matchNum = match[2];
       const matchId = `${regionRaw}_${matchNum}`;
-      const apiKey = document.getElementById('apiKeyInput').value.trim() || localStorage.getItem('riot_api_key');
+      
+      // Obtiene la clave ingresada en la casilla o guardada en la memoria
+      const apiKey = (document.getElementById('apiKeyInput').value || localStorage.getItem('riot_api_key') || '').trim();
 
       if (!apiKey) {
-        alert("Debes pegar tu Riot API Key arriba y pulsar 'Guardar Key' antes de subir la partida.");
+        alert("Debes pegar tu Riot API Key en el recuadro superior.");
         mostrarFallbackMatchID(fileName, matchId);
         return;
       }
 
+      localStorage.setItem('riot_api_key', apiKey);
       obtenerDatosRiotAPI(matchId, regionRaw, apiKey, fileName);
     });
 
     async function obtenerDatosRiotAPI(matchId, region, apiKey, fileName) {
-      // Mapear región a cluster de Riot (Americas, Asia, Europe)
       let routing = "americas";
       if (["EUW1", "EUN1", "TR1", "RU"].includes(region)) routing = "europe";
       if (["KR", "JP1"].includes(region)) routing = "asia";
 
       const riotUrl = `https://${routing}.api.riotgames.com/lol/match/v5/matches/${matchId}`;
-      
-      // Uso de Proxy CORS para permitir la petición desde el navegador en Vercel
       const proxyUrl = `https://corsproxy.io/?` + encodeURIComponent(riotUrl);
 
       document.getElementById('resultado').innerHTML = `
@@ -98,11 +96,15 @@
         });
 
         if (response.status === 401 || response.status === 403) {
-          throw new Error("API Key inválida o expirada. Por favor verifica tu clave en developer.riotgames.com");
+          throw new Error("API Key no autorizada o vencida (Error 401/403). Verifica la clave en Riot.");
+        }
+
+        if (response.status === 404) {
+          throw new Error("Partida no encontrada (Error 404). Las scrims personalizadas antiguas no quedan almacenadas en la API de Riot.");
         }
 
         if (!response.ok) {
-          throw new Error(`Error en la consulta (Status ${response.status}). Es posible que la partida sea muy antigua o el ID no exista.`);
+          throw new Error(`Error de servidor (Status ${response.status}).`);
         }
 
         const data = await response.json();
@@ -167,7 +169,7 @@
             <span class="text-[11px] bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2.5 py-0.5 rounded font-mono">MATCH ID DETECTADO: ${matchId}</span>
           </div>
           <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
-            Para obtener los 10 jugadores reales de esta scrim, ingresa una <b>Riot API Key activa</b> en la casilla superior.
+            Para obtener los 10 jugadores reales de esta scrim, ingresa una <b>Riot API Key activa</b> en la casilla superior y pulsa <b>Guardar Key</b>.
           </p>
         </div>`;
 
