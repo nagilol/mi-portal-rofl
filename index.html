@@ -47,7 +47,6 @@
       }
     }
 
-    // Prioriza la Key en el input o la guardada previamente
     const savedKey = localStorage.getItem('riot_api_key');
     if (savedKey) {
       document.getElementById('apiKeyInput').value = savedKey;
@@ -86,8 +85,9 @@
       if (["EUW1", "EUN1", "TR1", "RU"].includes(region)) routing = "europe";
       if (["KR", "JP1"].includes(region)) routing = "asia";
 
-      const riotUrl = `https://${routing}.api.riotgames.com/lol/match/v5/matches/${matchId}`;
-      const proxyUrl = `https://corsproxy.io/?` + encodeURIComponent(riotUrl);
+      // Incluimos la API Key en la URL para que no sea bloqueada por headers en el Proxy
+      const targetUrl = `https://${routing}.api.riotgames.com/lol/match/v5/matches/${matchId}?api_key=${apiKey}`;
+      const proxyUrl = `https://api.allorigins.win/raw?url=` + encodeURIComponent(targetUrl);
 
       document.getElementById('resultado').innerHTML = `
         <div class="bg-zinc-900 border border-zinc-800 p-6 rounded-lg text-center text-xs font-mono text-teal-400 animate-pulse">
@@ -95,16 +95,14 @@
         </div>`;
 
       try {
-        const response = await fetch(proxyUrl, {
-          headers: { "X-Riot-Token": apiKey }
-        });
+        const response = await fetch(proxyUrl);
 
         if (response.status === 401 || response.status === 403) {
-          throw new Error("API Key rechazada por Riot (Error 401/403). Verifica que la clave no haya caducado.");
+          throw new Error("API Key rechazada por Riot (Error 401/403). Verifica que la clave no haya vencido.");
         }
 
         if (response.status === 404) {
-          throw new Error("Partida no encontrada en la API de Riot (Error 404). Las scrims personalizadas antiguas no quedan registradas.");
+          throw new Error("Partida no encontrada (Error 404). Las scrims personalizadas antiguas no quedan guardadas en la API.");
         }
 
         if (!response.ok) {
@@ -112,6 +110,11 @@
         }
 
         const data = await response.json();
+        
+        if (!data || !data.info) {
+          throw new Error("No se encontraron detalles para este Match ID.");
+        }
+
         const participants = data.info.participants;
         mostrarTablaScrimAPI(participants, fileName, matchId);
       } catch (err) {
