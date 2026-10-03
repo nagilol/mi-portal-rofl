@@ -3,342 +3,58 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SoloQ Analytics - Dynamic Dashboard</title>
+  <title>SoloQ Automated Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Plus Jakarta Sans', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
-          },
-          colors: {
-            brand: {
-              bg: '#09090b',
-              card: '#121215',
-              border: '#1f1f24',
-              accent: '#2dd4bf',
-              accentGlow: 'rgba(45, 212, 191, 0.15)',
-            }
-          }
-        }
-      }
-    }
-  </script>
-  <style>
-    body { background-color: #09090b; color: #f4f4f5; }
-    .glow-border { border: 1px solid rgba(45, 212, 191, 0.3); box-shadow: 0 0 15px rgba(45, 212, 191, 0.08); }
-    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: #09090b; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
-  </style>
+  <link rel="stylesheet" href="styles.css">
 </head>
-<body class="p-4 md:p-8 max-w-7xl mx-auto custom-scrollbar">
+<body class="p-4 md:p-8 max-w-6xl mx-auto custom-scrollbar">
 
-  <!-- TOP BAR / HEADER -->
-  <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-4 border-b border-brand-border">
-    <div class="flex items-center gap-3">
-      <div class="h-3 w-3 rounded-full bg-brand-accent animate-pulse"></div>
-      <h1 class="text-xl font-bold tracking-tight text-white font-mono">SOLOQ <span class="text-brand-accent">ANALYTICS</span></h1>
-    </div>
+  <!-- BARRA DE BÚSQUEDA AUTOMÁTICA -->
+  <header class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 pb-4 border-b border-zinc-800">
+    <h1 class="text-xl font-bold font-mono tracking-wider text-teal-400">SOLOQ<span class="text-white">_AUTOMATED</span></h1>
     
-    <!-- Config Selector de Región / Búsqueda rápida -->
     <div class="flex items-center gap-2 w-full md:w-auto font-mono text-xs">
-      <select id="regionSelect" class="bg-brand-card border border-brand-border px-3 py-2 rounded-lg text-zinc-300 focus:outline-none focus:border-brand-accent">
+      <select id="region" class="bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-lg text-zinc-300">
         <option value="las">LAS</option>
         <option value="lan">LAN</option>
-        <option value="kr">KR</option>
         <option value="na">NA</option>
         <option value="euw">EUW</option>
+        <option value="kr">KR</option>
       </select>
-      <input type="text" id="apiKeyInput" placeholder="Riot API Key (RGAPI-...)" 
-             class="bg-brand-card border border-brand-border px-3 py-2 rounded-lg text-brand-accent focus:outline-none focus:border-brand-accent w-full md:w-60">
-      <button onclick="guardarKey()" class="bg-brand-accent hover:bg-teal-300 text-zinc-950 font-bold px-4 py-2 rounded-lg transition">
-        Guardar
+      <input type="text" id="riotId" placeholder="Invocador#TAG" value="Shavo#LAS" 
+             class="bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-lg text-white w-full md:w-64 focus:outline-none focus:border-teal-400">
+      <button onclick="cargarDatos()" class="bg-teal-400 hover:bg-teal-300 text-zinc-950 font-bold px-4 py-2 rounded-lg transition">
+        Cargar
       </button>
     </div>
   </header>
 
-  <!-- PANEL EDITABLE DE JUGADOR & EXTERNAL LINKS -->
-  <section class="bg-brand-card border border-brand-border rounded-2xl p-5 mb-8">
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 mb-4 border-b border-brand-border">
-      
-      <!-- Entrada de nombre de Invocador -->
-      <div class="flex items-center gap-4 w-full md:w-auto">
-        <div class="relative">
-          <img id="playerAvatar" src="https://ddragon.leagueoflegends.com/cdn/14.5.1/img/champion/Jax.png" 
-               class="w-14 h-14 rounded-2xl border-2 border-brand-accent object-cover">
-          <span class="absolute -bottom-1 -right-1 bg-brand-accent text-zinc-950 font-bold text-[9px] px-1.5 py-0.5 rounded-full font-mono">TOP</span>
-        </div>
-        
-        <div>
-          <div class="flex items-center gap-2">
-            <input type="text" id="summonerInput" value="Shavo#LAS" onchange="actualizarJugador()"
-                   class="bg-transparent text-xl font-bold text-white font-mono border-b border-dashed border-zinc-600 focus:border-brand-accent focus:outline-none px-1 py-0.5">
-          </div>
-          <p class="text-xs text-brand-accent font-mono mt-1">MASTER 1,082 LP • SOLOQ</p>
-        </div>
+  <!-- PERFIL AUTOMATIZADO -->
+  <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-8 flex flex-col md:flex-row justify-between items-center gap-6">
+    <div class="flex items-center gap-4">
+      <img id="profileIcon" src="https://ddragon.leagueoflegends.com/cdn/14.5.1/img/profileicon/29.png" class="w-16 h-16 rounded-2xl border-2 border-teal-400">
+      <div>
+        <h2 id="summonerName" class="text-2xl font-bold font-mono text-white">---#---</h2>
+        <p id="rankInfo" class="text-xs font-mono text-teal-400 mt-0.5">CARGANDO...</p>
       </div>
-
-      <!-- BOTONES OP.GG Y LOLGRAPHS -->
-      <div class="flex items-center gap-3 w-full md:w-auto font-mono text-xs">
-        <button onclick="abrirExternal('opgg')" 
-                class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 px-4 py-2 rounded-xl transition">
-          <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>
-          OP.GG
-        </button>
-        <button onclick="abrirExternal('lolgraphs')" 
-                class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-500/30 px-4 py-2 rounded-xl transition">
-          <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.09-4-4L2 15.08l1.5 1.41z"/></svg>
-          League of Graphs
-        </button>
-      </div>
-
     </div>
 
-    <!-- ESTADÍSTICAS INDIVIDUALES -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 font-mono">
-      <div class="bg-zinc-950 p-3 rounded-xl border border-brand-border">
-        <div class="text-[10px] text-zinc-500">KDA PROMEDIO</div>
-        <div class="text-base font-bold text-white mt-0.5">3.6 / 2.8 / 6.5</div>
-        <div class="text-[10px] text-brand-accent">3.61:1 Ratio</div>
-      </div>
-      <div class="bg-zinc-950 p-3 rounded-xl border border-brand-border">
-        <div class="text-[10px] text-zinc-500">CS / MIN</div>
-        <div class="text-base font-bold text-white mt-0.5">8.1</div>
-        <div class="text-[10px] text-zinc-400">443 GPM</div>
-      </div>
-      <div class="bg-zinc-950 p-3 rounded-xl border border-brand-border">
-        <div class="text-[10px] text-zinc-500">KILL PARTICIPATION</div>
-        <div class="text-base font-bold text-white mt-0.5">46%</div>
-        <div class="text-[10px] text-zinc-400">Alto Impacto</div>
-      </div>
-      <div class="bg-zinc-950 p-3 rounded-xl border border-brand-border">
-        <div class="text-[10px] text-zinc-500">CONTROL VISION</div>
-        <div class="text-base font-bold text-white mt-0.5">24.6</div>
-        <div class="text-[10px] text-zinc-400">4 Wards/Game</div>
-      </div>
+    <!-- BOTÓN DIRECTO OP.GG -->
+    <button onclick="irAOpGg()" class="flex items-center gap-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 px-5 py-2.5 rounded-xl font-mono text-xs transition">
+      <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>
+      Ver en OP.GG
+    </button>
+  </section>
+
+  <!-- HISTORIAL AUTOMÁTICO DE PARTIDAS -->
+  <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+    <h3 class="text-xs font-mono font-semibold text-zinc-400 tracking-wider mb-4">ÚLTIMAS PARTIDAS (AUTOMÁTICO RIOT API)</h3>
+    <div id="matchList" class="space-y-3 font-mono text-xs">
+      <p class="text-zinc-500">Haz clic en Cargar para obtener partidas en tiempo real...</p>
     </div>
   </section>
 
-  <!-- GRÁFICOS: EVOLUCIÓN LP + RADAR -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-    <div class="lg:col-span-2 bg-brand-card border border-brand-border rounded-2xl p-5">
-      <div class="flex justify-between items-center mb-4 font-mono">
-        <h3 class="text-xs font-semibold text-zinc-400">EVOLUCIÓN DE LP (14 DÍAS)</h3>
-        <span class="text-xs text-brand-accent font-bold">+162 LP este ciclo</span>
-      </div>
-      <div class="h-52 w-full">
-        <canvas id="lpChart"></canvas>
-      </div>
-    </div>
-
-    <div class="bg-brand-card border border-brand-border rounded-2xl p-5 flex flex-col justify-between">
-      <h3 class="text-xs font-mono font-semibold text-zinc-400 mb-2">PERFIL ANALÍTICO</h3>
-      <div class="h-48 w-full flex items-center justify-center">
-        <canvas id="radarChart"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <!-- AÑADIR NUEVA PARTIDA / REGISTRO DINÁMICO DE CAMPEONES -->
-  <section class="bg-brand-card border border-brand-border rounded-2xl p-5 mb-8">
-    <h3 class="text-xs font-mono font-semibold text-zinc-400 tracking-wider mb-4">REGISTRAR NUEVA PARTIDA (DINÁMICO)</h3>
-    <form id="matchForm" onsubmit="agregarPartida(event)" class="grid grid-cols-2 md:grid-cols-6 gap-3 font-mono text-xs">
-      
-      <!-- Input de Campeón (Detecta imagen automáticamente) -->
-      <div class="col-span-2 md:col-span-1">
-        <label class="text-[10px] text-zinc-500 block mb-1">CAMPEÓN</label>
-        <input type="text" id="champInput" placeholder="Ej: Aatrox, Ahri, Jax" required
-               class="w-full bg-zinc-950 border border-brand-border px-3 py-2 rounded-lg text-white focus:outline-none focus:border-brand-accent">
-      </div>
-
-      <div>
-        <label class="text-[10px] text-zinc-500 block mb-1">RIVAL</label>
-        <input type="text" id="vsInput" placeholder="Ej: Darius" required
-               class="w-full bg-zinc-950 border border-brand-border px-3 py-2 rounded-lg text-white focus:outline-none focus:border-brand-accent">
-      </div>
-
-      <div>
-        <label class="text-[10px] text-zinc-500 block mb-1">K / D / A</label>
-        <input type="text" id="kdaInput" placeholder="10/2/5" required
-               class="w-full bg-zinc-950 border border-brand-border px-3 py-2 rounded-lg text-white focus:outline-none focus:border-brand-accent">
-      </div>
-
-      <div>
-        <label class="text-[10px] text-zinc-500 block mb-1">CS / MIN</label>
-        <input type="number" step="0.1" id="csInput" placeholder="8.5" required
-               class="w-full bg-zinc-950 border border-brand-border px-3 py-2 rounded-lg text-white focus:outline-none focus:border-brand-accent">
-      </div>
-
-      <div>
-        <label class="text-[10px] text-zinc-500 block mb-1">RESULTADO</label>
-        <select id="resultInput" class="w-full bg-zinc-950 border border-brand-border px-3 py-2 rounded-lg text-white focus:outline-none focus:border-brand-accent">
-          <option value="Victoria">Victoria</option>
-          <option value="Derrota">Derrota</option>
-        </select>
-      </div>
-
-      <div class="col-span-2 md:col-span-1 flex items-end">
-        <button type="submit" class="w-full bg-brand-accent hover:bg-teal-300 text-zinc-950 font-bold py-2 rounded-lg transition">
-          + Agregar
-        </button>
-      </div>
-    </form>
-  </section>
-
-  <!-- HISTORIAL CON IMÁGENES AUTOMÁTICAS DE RIOT -->
-  <section class="bg-brand-card border border-brand-border rounded-2xl p-5">
-    <h3 class="text-xs font-mono font-semibold text-zinc-400 tracking-wider mb-4">HISTORIAL DE PARTIDAS RECIENTES</h3>
-    <div id="matchHistoryList" class="space-y-2 font-mono">
-      <!-- Se llena dinámicamente con JavaScript -->
-    </div>
-  </section>
-
-  <!-- LÓGICA DE JAVASCRIPT Y RIOT DATA DRAGON -->
-  <script>
-    const LOL_VERSION = "14.5.1"; // Versión activa de Riot DataDragon
-
-    // Partidas iniciales de prueba
-    let matches = [
-      { champ: 'Jayce', vs: 'DrMundo', kda: '4/2/7', cs: '9.2', goldAt15: '+1247', result: 'Victoria' },
-      { champ: 'Nasus', vs: 'Kassadin', kda: '14/2/8', cs: '8.8', goldAt15: '+1631', result: 'Victoria' },
-      { champ: 'Jax', vs: 'KSante', kda: '5/5/5', cs: '6.5', goldAt15: '-113', result: 'Derrota' }
-    ];
-
-    // Helper para obtener URL oficial de imagen de Campeón
-    function getChampImgUrl(championName) {
-      // Formatear nombre para Data Dragon (Ej: "DrMundo" -> "DrMundo", "K'Sante" -> "KSante")
-      const formattedName = championName.replace(/[^a-zA-Z]/g, '');
-      const capName = formattedName.charAt(0).toUpperCase() + formattedName.slice(1);
-      return `https://ddragon.leagueoflegends.com/cdn/${LOL_VERSION}/img/champion/${capName}.png`;
-    }
-
-    // Renderizar Historial
-    function renderMatches() {
-      const list = document.getElementById('matchHistoryList');
-      list.innerHTML = '';
-
-      matches.forEach((m) => {
-        const isWin = m.result === 'Victoria';
-        const card = document.createElement('div');
-        card.className = `flex items-center justify-between p-3 bg-zinc-950 border ${isWin ? 'border-brand-border hover:border-brand-accent/40' : 'border-brand-border hover:border-rose-500/40'} rounded-xl transition`;
-        
-        card.innerHTML = `
-          <div class="flex items-center gap-3">
-            <span class="w-1.5 h-10 ${isWin ? 'bg-emerald-400' : 'bg-rose-500'} rounded-full"></span>
-            <img src="${getChampImgUrl(m.champ)}" onerror="this.src='https://ddragon.leagueoflegends.com/cdn/${LOL_VERSION}/img/champion/Jax.png'" class="w-10 h-10 rounded-lg object-cover border border-zinc-800">
-            <div>
-              <div class="text-xs font-bold text-white flex items-center gap-1.5">
-                ${m.champ} <span class="text-zinc-500 text-[10px]">vs</span> 
-                <img src="${getChampImgUrl(m.vs)}" onerror="this.style.display='none'" class="w-4 h-4 rounded-full inline-block">
-                <span class="text-zinc-400 text-[10px]">${m.vs}</span>
-              </div>
-              <div class="text-[10px] ${isWin ? 'text-emerald-400' : 'text-rose-400'}">${m.result}</div>
-            </div>
-          </div>
-          <div class="text-right">
-            <div class="text-xs font-bold ${isWin ? 'text-emerald-400' : 'text-rose-400'}">${m.kda}</div>
-            <div class="text-[10px] text-zinc-400">CS: ${m.cs}/m</div>
-          </div>
-        `;
-        list.appendChild(card);
-      });
-    }
-
-    // Agregar nueva partida
-    function agregarPartida(e) {
-      e.preventDefault();
-      const champ = document.getElementById('champInput').value.trim();
-      const vs = document.getElementById('vsInput').value.trim();
-      const kda = document.getElementById('kdaInput').value.trim();
-      const cs = document.getElementById('csInput').value.trim();
-      const result = document.getElementById('resultInput').value;
-
-      matches.unshift({ champ, vs, kda, cs, result });
-      renderMatches();
-      
-      // Actualizar Avatar con el último campeón usado
-      document.getElementById('playerAvatar').src = getChampImgUrl(champ);
-      
-      document.getElementById('matchForm').reset();
-    }
-
-    // Redirección a OP.GG y League of Graphs
-    function abrirExternal(platform) {
-      const summoner = document.getElementById('summonerInput').value.trim();
-      const region = document.getElementById('regionSelect').value;
-
-      // Separar Nombre y Tag (Ej: Shavo#LAS)
-      let name = summoner;
-      let tag = region.toUpperCase();
-      
-      if (summoner.includes('#')) {
-        const parts = summoner.split('#');
-        name = parts[0];
-        tag = parts[1];
-      }
-
-      if (platform === 'opgg') {
-        window.open(`https://www.op.gg/summoners/${region}/${encodeURIComponent(name)}-${encodeURIComponent(tag)}`, '_blank');
-      } else if (platform === 'lolgraphs') {
-        window.open(`https://www.leagueofgraphs.com/summoner/${region}/${encodeURIComponent(name)}-${encodeURIComponent(tag)}`, '_blank');
-      }
-    }
-
-    function actualizarJugador() {
-      const summoner = document.getElementById('summonerInput').value;
-      console.log("Jugador actualizado a:", summoner);
-    }
-
-    function guardarKey() {
-      const key = document.getElementById('apiKeyInput').value.trim();
-      if(key) {
-        localStorage.setItem('riot_api_key', key);
-        alert('API Key guardada localmente.');
-      }
-    }
-
-    // Inicializar Gráficos Chart.js
-    window.onload = () => {
-      renderMatches();
-
-      // Chart LP
-      new Chart(document.getElementById('lpChart').getContext('2d'), {
-        type: 'line',
-        data: {
-          labels: ['26/09', '27/09', '28/09', '29/09', '30/09', '01/10', '02/10', '03/10'],
-          datasets: [{
-            data: [920, 890, 910, 960, 980, 985, 1010, 1082],
-            borderColor: '#2dd4bf',
-            borderWidth: 2,
-            tension: 0.4,
-            fill: true,
-            backgroundColor: 'rgba(45, 212, 191, 0.08)'
-          }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-      });
-
-      // Chart Radar
-      new Chart(document.getElementById('radarChart').getContext('2d'), {
-        type: 'radar',
-        data: {
-          labels: ['Farm', 'KDA', 'Visión', 'Daño', 'KP%'],
-          datasets: [{
-            data: [85, 75, 60, 90, 65],
-            borderColor: '#2dd4bf',
-            backgroundColor: 'rgba(45, 212, 191, 0.15)',
-            borderWidth: 2
-          }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-      });
-    };
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
