@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visor de Replays LoL (.ROFL)</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f1923; color: #fff; padding: 20px; text-align: center; }
+    h1 { color: #00bba3; }
+    .box { border: 2px dashed #00bba3; padding: 40px; margin: 20px auto; max-width: 500px; border-radius: 10px; background: #1f232d; cursor: pointer; transition: 0.2s; }
+    .box:hover { background: #2a303f; }
+    input[type="file"] { display: none; }
+    table { width: 100%; max-width: 800px; margin: 30px auto; border-collapse: collapse; background: #1f232d; border-radius: 8px; overflow: hidden; }
+    th, td { border: 1px solid #2f3644; padding: 12px; text-align: left; }
+    th { background-color: #00bba3; color: #0f1923; text-transform: uppercase; font-size: 14px; }
+    tr:nth-child(even) { background-color: #171b24; }
+    .victoria { color: #20e070; font-weight: bold; }
+    .derrota { color: #ff4655; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <h1>Visor de Archivos .ROFL</h1>
+  <p>Arrastra o selecciona tu archivo de repetición de League of Legends</p>
+
+  <div class="box" onclick="document.getElementById('roflInput').click()">
+    <p>📁 Haz clic aquí para subir tu archivo <b>.rofl</b></p>
+    <input type="file" id="roflInput" accept=".rofl">
+  </div>
+
+  <div id="resultado"></div>
+
+  <script>
+    document.getElementById('roflInput').addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const text = new TextDecoder('utf-8').decode(e.target.result);
+        const jsonStart = text.indexOf('{"gameLength"');
+
+        if (jsonStart === -1) {
+          alert("No se pudieron extraer datos del archivo .rofl. El archivo no contiene la cabecera estándar.");
+          return;
+        }
+
+        const jsonEnd = text.indexOf('}"', jsonStart) + 1;
+        const jsonString = text.substring(jsonStart, jsonEnd);
+
+        try {
+          const metadata = JSON.parse(jsonString);
+          const players = JSON.parse(metadata.statsJson);
+          mostrarTabla(players);
+        } catch (err) {
+          alert("Error al parsear los datos de la partida.");
+        }
+      };
+
+      // Lee los primeros 100 KB del archivo
+      reader.readAsArrayBuffer(file.slice(0, 100 * 1024));
+    });
+
+    function mostrarTabla(players) {
+      let html = `<h2>Resultado de la Partida</h2>`;
+      html += `<table>
+        <tr>
+          <th>Invocador</th>
+          <th>Campeón</th>
+          <th>K / D / A</th>
+          <th>Resultado</th>
+        </tr>`;
+
+      players.forEach(p => {
+        const isWin = p.WIN_TEAM_NAME === "FINAL_WINDOW_VICTORY";
+        const resText = isWin ? "Victoria" : "Derrota";
+        const resClass = isWin ? "victoria" : "derrota";
+
+        html += `<tr>
+          <td>${p.NAME || 'Jugador'}</td>
+          <td>${p.SKIN}</td>
+          <td>${p.KILLS} / ${p.DEATHS} / ${p.ASSISTS}</td>
+          <td class="${resClass}">${resText}</td>
+        </tr>`;
+      });
+
+      html += `</table>`;
+      document.getElementById('resultado').innerHTML = html;
+    }
+  </script>
+</body>
+</html>
