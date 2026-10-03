@@ -19,8 +19,8 @@
 
   <!-- Configuración de API Key -->
   <div class="bg-zinc-900 border border-zinc-800 p-4 rounded-xl mb-6 flex flex-col md:flex-row items-center gap-3">
-    <input type="password" id="apiKeyInput" placeholder="Pega tu Riot API Key (RGAPI-...)" 
-           class="bg-zinc-950 border border-zinc-800 text-xs px-3 py-2 rounded-lg w-full text-teal-300 focus:outline-none focus:border-teal-500">
+    <input type="text" id="apiKeyInput" placeholder="Pega tu Riot API Key (RGAPI-...)" 
+           class="bg-zinc-950 border border-zinc-800 text-xs px-3 py-2 rounded-lg w-full text-teal-300 focus:outline-none focus:border-teal-500 font-mono">
     <button onclick="guardarKey()" class="bg-teal-500 hover:bg-teal-400 text-zinc-950 font-bold px-4 py-2 rounded-lg text-xs transition whitespace-nowrap">
       Guardar Key
     </button>
@@ -36,19 +36,18 @@
   <div id="resultado" class="space-y-4"></div>
 
   <script>
-    // TU API KEY POR DEFECTO
-    const DEFAULT_API_KEY = "RGAPI-df67cc3a-5ad0-41d4-bf8e-8a23580f6db1";
-
     function guardarKey() {
       const key = document.getElementById('apiKeyInput').value.trim();
       if (key) {
         localStorage.setItem('riot_api_key', key);
-        alert("API Key guardada localmente.");
+        alert("¡API Key guardada correctamente!");
+      } else {
+        alert("Por favor pega una API Key válida de Riot.");
       }
     }
 
-    // Cargar Key al iniciar
-    document.getElementById('apiKeyInput').value = localStorage.getItem('riot_api_key') || DEFAULT_API_KEY;
+    // Cargar Key guardada al abrir la página
+    document.getElementById('apiKeyInput').value = localStorage.getItem('riot_api_key') || '';
 
     document.getElementById('roflInput').addEventListener('change', function(event) {
       const file = event.target.files[0];
@@ -66,15 +65,15 @@
       const regionRaw = match[1].toUpperCase();
       const matchNum = match[2];
       const matchId = `${regionRaw}_${matchNum}`;
-      
-      // Usa la key guardada en el navegador o la key por defecto
-      const apiKey = localStorage.getItem('riot_api_key') || DEFAULT_API_KEY;
+      const apiKey = document.getElementById('apiKeyInput').value.trim() || localStorage.getItem('riot_api_key');
 
       if (!apiKey) {
+        alert("Debes pegar tu Riot API Key arriba y pulsar 'Guardar Key' antes de subir la partida.");
         mostrarFallbackMatchID(fileName, matchId);
-      } else {
-        obtenerDatosRiotAPI(matchId, regionRaw, apiKey, fileName);
+        return;
       }
+
+      obtenerDatosRiotAPI(matchId, regionRaw, apiKey, fileName);
     });
 
     async function obtenerDatosRiotAPI(matchId, region, apiKey, fileName) {
@@ -83,20 +82,27 @@
       if (["EUW1", "EUN1", "TR1", "RU"].includes(region)) routing = "europe";
       if (["KR", "JP1"].includes(region)) routing = "asia";
 
-      const url = `https://${routing}.api.riotgames.com/lol/match/v5/matches/${matchId}`;
+      const riotUrl = `https://${routing}.api.riotgames.com/lol/match/v5/matches/${matchId}`;
+      
+      // Uso de Proxy CORS para permitir la petición desde el navegador en Vercel
+      const proxyUrl = `https://corsproxy.io/?` + encodeURIComponent(riotUrl);
 
       document.getElementById('resultado').innerHTML = `
-        <div class="bg-zinc-900 border border-zinc-800 p-6 rounded-lg text-center text-xs font-mono text-teal-400">
-          Consultando Riot Games API para el Match ID: ${matchId}...
+        <div class="bg-zinc-900 border border-zinc-800 p-6 rounded-lg text-center text-xs font-mono text-teal-400 animate-pulse">
+          Consultando API de Riot Games para Match ID: ${matchId}...
         </div>`;
 
       try {
-        const response = await fetch(url, {
+        const response = await fetch(proxyUrl, {
           headers: { "X-Riot-Token": apiKey }
         });
 
+        if (response.status === 401 || response.status === 403) {
+          throw new Error("API Key inválida o expirada. Por favor verifica tu clave en developer.riotgames.com");
+        }
+
         if (!response.ok) {
-          throw new Error(`Error HTTP: ${response.status}`);
+          throw new Error(`Error en la consulta (Status ${response.status}). Es posible que la partida sea muy antigua o el ID no exista.`);
         }
 
         const data = await response.json();
@@ -104,7 +110,7 @@
         mostrarTablaScrimAPI(participants, fileName, matchId);
       } catch (err) {
         console.error(err);
-        alert("No se pudieron obtener los datos de la API. Recuerda que la API Key caduca cada 24 horas y debes regenerarla en el panel de Riot.");
+        alert(err.message);
         mostrarFallbackMatchID(fileName, matchId);
       }
     }
@@ -133,10 +139,11 @@
         const isWin = p.win;
         const resText = isWin ? "Victoria" : "Derrota";
         const resColor = isWin ? "text-emerald-400 bg-emerald-500/10" : "text-rose-400 bg-rose-500/10";
+        const nameToShow = p.riotIdGameName ? `${p.riotIdGameName}#${p.riotIdTagline}` : (p.summonerName || 'Invocador');
 
         html += `
           <tr class="hover:bg-zinc-800/30">
-            <td class="p-2.5 font-semibold text-zinc-200">${p.summonerName || p.riotIdGameName || 'Invocador'}</td>
+            <td class="p-2.5 font-semibold text-zinc-200">${nameToShow}</td>
             <td class="p-2.5 text-zinc-300">${p.championName}</td>
             <td class="p-2.5 text-zinc-400">${p.kills} / ${p.deaths} / ${p.assists}</td>
             <td class="p-2.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${resColor}">${resText}</span></td>
@@ -160,7 +167,7 @@
             <span class="text-[11px] bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2.5 py-0.5 rounded font-mono">MATCH ID DETECTADO: ${matchId}</span>
           </div>
           <p class="text-xs text-zinc-300 mb-4 leading-relaxed">
-            Para obtener los 10 jugadores reales de esta scrim automáticamente, pega una <b>Riot API Key</b> válida en la barra superior.
+            Para obtener los 10 jugadores reales de esta scrim, ingresa una <b>Riot API Key activa</b> en la casilla superior.
           </p>
         </div>`;
 
